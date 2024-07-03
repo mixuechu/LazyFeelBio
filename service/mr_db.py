@@ -28,7 +28,7 @@ class MGwasData(mr_db.Model):
     __tablename__ = 'm_gwas_data'
     gwas_id = mr_db.Column(mr_db.String(255), primary_key=True)
     name = mr_db.Column(mr_db.String(255), nullable=False)
-    is_downloaded = mr_db.Column(mr_db.Boolean, default=False)
+    state = mr_db.Column(mr_db.String(50), default="MISSING")
 
 
 class MEntity(mr_db.Model):

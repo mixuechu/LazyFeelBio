@@ -1,12 +1,54 @@
+# utils.py
+
 import os
 from flask import jsonify
 from sqlalchemy.exc import SQLAlchemyError
 from mr_db import *
 from sqlalchemy import text
+from enum import Enum
 
 
 class GWASDataExistsError(Exception):
     pass
+
+
+class DataStatus(Enum):
+    RAW = "RAW"
+    PURIFIED = "PURIFIED"
+    PURIFYING = "PURIFYING"
+    MISSING = "MISSING"
+    FAILED = "FAILED"
+
+
+def read_r_script(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.read()
+
+
+def check_purified(gwas_id):
+    data = MGwasData.query.get(gwas_id)
+    file_path = f"./purified_data/{gwas_id}.csv"
+    if not data:
+        print("PURIFICATION: Data not found")
+        return False
+    if not os.path.exists(file_path):
+        print(f"PURIFICATION Error: File {file_path} not found")
+        return False
+    return True
+
+
+def mark_data_status(gwas_id, data_status):
+    data = MGwasData.query.get(gwas_id)
+    data.state = data_status.value
+    mr_db.session.add(data)
+    mr_db.session.commit()
+
+
+def mark_task_status(task_id, task_status):
+    task = MTask.query.get(task_id)
+    task.state = task_status.value
+    mr_db.session.add(task)
+    mr_db.session.commit()
 
 
 def delete_data_from_db(data_id):
@@ -25,6 +67,44 @@ def delete_data_from_db(data_id):
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
 
 
+def delete_task_from_db(task_id):
+    try:
+        # 查找要删除的记录
+        task = MTask.query.get(task_id)
+        if not task:
+            return jsonify({"message": "Task not found"}), 404
+
+        # 删除记录
+        mr_db.session.delete(task)
+        mr_db.session.commit()
+        return jsonify({"message": "Task deleted successfully"}), 200
+    except Exception as e:
+        mr_db.session.rollback()
+        return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
+
+@app.route('/tasks', methods=['GET'])
+def get_task_list():
+    try:
+        # 查询数据库获取所有任务
+        task_list = MTask.query.all()
+
+        # 将数据转换为字典列表
+        data_list = [{
+            'id': task.id,
+            'name': task.name,
+            'state': task.state,
+            'type': task.type,
+            'description': task.description,
+            'create_time': task.create_time
+        } for task in task_list]
+
+        return jsonify({"data_list": data_list}), 200
+    except Exception as e:
+        print(f"Error retrieving tasks: {str(e)}")
+        return jsonify({"message": f"Error retrieving tasks: {str(e)}"}), 500
+
+
 def get_data_list():
     try:
         # 查询数据库获取所有 GWAS 数据
@@ -32,11 +112,9 @@ def get_data_list():
 
         # 将数据转换为字典列表
         data_list = [{
-            # 'id': data.id,
-            # 'type': data.type,
             'gwas_id': data.gwas_id,
             'name': data.name,
-            'is_downloaded': data.is_downloaded
+            'state': data.state
         } for data in gwas_data_list]
         return jsonify({"data_list": data_list}), 200
     except Exception as e:
@@ -44,28 +122,12 @@ def get_data_list():
         return jsonify({"message": f"Error retrieving data: {str(e)}"}), 500
 
 
-def upload_and_save_file(form, file):
-    try:
-        filename = file.filename
-        file_path = os.path.join('./gwas_data', filename)
-
-        # 检查文件是否已经存在
-        if os.path.exists(file_path):
-            print(f"Warning: File {filename} already exists and will be overwritten")
-
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        file.save(file_path)
-        print(f"File {filename} saved to path {file_path}")
-    except Exception as e:
-        print(f"File save error: {str(e)}")
-        return jsonify({"message": f"File save error: {str(e)}"}), 400
-
+def upload_and_save_file(form, filename):
     try:
         file_info = {
-            # 'type': form.get('type'),
             'gwas_id': form.get('gwas_id'),
             'name': form.get('name'),
-            'is_downloaded': True
+            'state': DataStatus.RAW.value
         }
         gwas_data = save_gwas_data(file_info)
         logging_info = f"File {filename} is saved and information stored in database."
@@ -73,11 +135,9 @@ def upload_and_save_file(form, file):
         return jsonify({
             "message": logging_info,
             "data": {
-                # 'id': gwas_data.id,
-                # 'type': gwas_data.type,
                 'gwas_id': gwas_data.gwas_id,
                 'name': gwas_data.name,
-                'is_downloaded': gwas_data.is_downloaded,
+                'state': DataStatus.RAW.value
             }
         }), 201
     except GWASDataExistsError as e:
@@ -89,25 +149,21 @@ def upload_and_save_file(form, file):
 
 def save_gwas_data(file_info):
     try:
-        # 检查 gwas_id 是否已经存在
-        existing_gwas = MGwasData.query.filter_by(gwas_id=file_info.get('gwas_id')).first()
-        if existing_gwas:
-            raise GWASDataExistsError(f"GWAS data with gwas_id {file_info.get('gwas_id')} already exists.")
+        gwas_data = MGwasData.query.filter_by(gwas_id=file_info.get('gwas_id')).first()
 
-        # 如果不存在，则创建新的记录
-        gwas_data = MGwasData(
-            # type=file_info.get('type'),
-            gwas_id=file_info.get('gwas_id'),
-            name=file_info.get('name'),
-            is_downloaded=file_info.get('is_downloaded')
-        )
-        mr_db.session.add(gwas_data)
+        if gwas_data:
+            gwas_data.state = file_info.get('state', 'PURIFYING')
+        else:
+            gwas_data = MGwasData(
+                gwas_id=file_info.get('gwas_id'),
+                name=file_info.get('name'),
+                state=file_info.get('state', 'PURIFYING')
+            )
+            mr_db.session.add(gwas_data)
+
         mr_db.session.commit()
-        print("File information saved successfully.")
+        print("File information saved/updated successfully.")
         return gwas_data
-    except GWASDataExistsError as e:
-        print(str(e))
-        raise
     except SQLAlchemyError as e:
         mr_db.session.rollback()
         print(f"Database error occurred: {str(e)}")
@@ -116,19 +172,17 @@ def save_gwas_data(file_info):
 
 def init_preset_data():
     file_info = {
-        # 'type': 'GWAS',
         'gwas_id': 'ieu-a-2',
         'name': 'BMI',
-        'is_downloaded': True
+        'state': 'MISSING'
     }
 
     save_gwas_data(file_info)
 
     file_info = {
-        # 'type': 'GWAS',
         'gwas_id': 'ieu-a-7',
         'name': '冠心病',
-        'is_downloaded': True
+        'state': 'MISSING'
     }
 
     save_gwas_data(file_info)
@@ -144,9 +198,7 @@ def setup():
     #     conn.execute(text('ALTER TABLE m_gwas_data DROP COLUMN IF EXISTS type'))
     #     conn.execute(text('ALTER TABLE m_gwas_data ADD PRIMARY KEY (gwas_id)'))
 
-
     # 初始化预设数据
     init_preset_data()
 
-
-setup()
+# setup()

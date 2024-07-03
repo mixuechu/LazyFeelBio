@@ -1,9 +1,13 @@
+# basic_mr_processor.py
+
 import os.path
 from enum import Enum
 import subprocess
 import shutil
 
 import argparse
+
+from utils import *
 
 
 class MRProcess(Enum):
@@ -15,23 +19,18 @@ class MRProcess(Enum):
     PLOT_MANHATTAN = "plot_manhattan.R"
 
 
-def read_r_script(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        return file.read()
-
-
 def create_and_run_r_script(input_param):
     working_directory = f"./task_working_directories/{input_param.get('id')}"
     script_content = f"""
     library(VariantAnnotation)
     library(gwasglue)
     library(TwoSampleMR)
-    
+
     library(MendelianRandomization)
     library(dplyr)
     library(tidyr)
     library(CMplot)
-    
+
     options(download.file.method = "curl")
     options(ieugwasr_api = 'gwas-api.mrcieu.ac.uk/')
     setwd("{working_directory}")
@@ -55,36 +54,16 @@ def create_and_run_r_script(input_param):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="do the most basic mendelian randomization analysis.")
-    parser.add_argument('--outcome_name', required=True, type=str, help='Outcome Name.')
-    parser.add_argument('--outcome_file', required=True, type=str, help='Outcome File.')
-    parser.add_argument('--exposure_name', required=True, type=str, help='Exposure Name.')
-    parser.add_argument('--exposure_file', required=True, type=str, help='Exposure File.')
-    parser.add_argument('--id', required=True, type=str, help='Task id.')
+
+    parser.add_argument('--exposure_id', required=True, type=str, help='暴露数据ID')
+    parser.add_argument('--outcome_id', required=True, type=str, help='结局数据ID')
+    parser.add_argument('--task_id', required=True, type=str, help='任务ID')
     args = parser.parse_args()
 
     input_param = {
-        "exposure_file": args.exposure_file,
-        "outcome_file": args.outcome_file,
-        "processes": [
-            'READ_VCF',
-            'CLUMP',
-            'FILTER_BY_F',
-            'HARMONIZE',
-            'MR_ANALYSIS',
-            'PLOT_MANHATTAN'
-        ],
-        "exposure_name": args.exposure_name,
-        "outcome_name": args.outcome_name,
-        "id": args.id
+        "exposure_id": args.exposure_id,
+        "outcome_id": args.outcome_id,
+        "task_id": args.task_id
     }
 
-    # move files
-
-    # for process in input_param.get('processes'):
-    #     working_folder = os.path.join("task_working_directories", input_param.get("id"))
-    #     shutil.copy(os.path.join("mr_scripts", MRProcess[process].value), working_folder)
-
     create_and_run_r_script(input_param)
-
-#   TODO: load results and save to database
-#   TODO: find a way to save task states
