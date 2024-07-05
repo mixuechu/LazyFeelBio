@@ -24,8 +24,9 @@ def process(input_param):
     inputFile <- "{gwas_id}.vcf.gz"
 
     vcfRT <- readVcf(inputFile)
-    data <- gwasvcf_to_TwoSampleMR(vcf=vcfRT, type="exposure")
-    outTab <- subset(data, pval.exposure < 5e-08)
+    outTab <- gwasvcf_to_TwoSampleMR(vcf=vcfRT, type="exposure")
+    write.csv(outTab, "{gwas_id}_original.csv", row.names=FALSE)
+    outTab <- subset(outTab, pval.exposure < 5e-08)
     exposure_dat_clumped <- clump_data(outTab, clump_kb=10000, clump_r2=0.001)
 
     Ffilter <- 10
@@ -34,7 +35,7 @@ def process(input_param):
     dat <- transform(dat, F = (N-2)*R2/(1-R2))
     outTab <- dat[dat$F > Ffilter,]
     # 此处存疑
-    write.csv(outTab, "{gwas_id}.csv", row.names=FALSE)
+    write.csv(outTab, "{gwas_id}_purified.csv", row.names=FALSE)
     """
 
     complete_script_path = f"{working_directory}/script.R"
@@ -45,12 +46,15 @@ def process(input_param):
         file.write(script_content)
 
     subprocess.run(['Rscript', complete_script_path], check=True)
-    shutil.copy(os.path.join(working_directory, f"{gwas_id}.csv"), os.path.join("./purified_data", f"{gwas_id}.csv"))
+    shutil.copy(os.path.join(working_directory, f"{gwas_id}_original.csv"),
+                os.path.join("./purified_data", f"{gwas_id}_original.csv"))
+    shutil.copy(os.path.join(working_directory, f"{gwas_id}_purified.csv"),
+                os.path.join("./purified_data", f"{gwas_id}_purified.csv"))
     # import time
     # time.sleep(30)
 
     if check_purified(gwas_id):
-        print(f"PURIFICATION Data purified, result saved to ./purified_data/{gwas_id}.csv")
+        print(f"PURIFICATION Data purified, result saved to ./purified_data/{gwas_id}_purified.csv")
         mark_data_status(gwas_id, DataStatus.PURIFIED)
     else:
         mark_data_status(gwas_id, DataStatus.FAILED)

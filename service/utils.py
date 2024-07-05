@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from mr_db import *
 from sqlalchemy import text
 from enum import Enum
+import pandas as pd
 
 
 class GWASDataExistsError(Exception):
@@ -20,6 +21,18 @@ class DataStatus(Enum):
     FAILED = "FAILED"
 
 
+def modify_to_outcome_csv(file_path):
+    df = pd.read_csv(file_path)
+    original_headers = df.columns
+    new_headers = [header.replace('exposure', 'outcome') for header in original_headers]
+    df.columns = new_headers
+
+    # 将修改后的文件保存
+    df.to_csv(file_path, index=False)
+
+    print(f"{file_path} 文件转为Outcome格式...")
+
+
 def read_r_script(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         return file.read()
@@ -27,7 +40,7 @@ def read_r_script(file_path):
 
 def check_purified(gwas_id):
     data = MGwasData.query.get(gwas_id)
-    file_path = f"./purified_data/{gwas_id}.csv"
+    file_path = f"./purified_data/{gwas_id}_purified.csv"
     if not data:
         print("PURIFICATION: Data not found")
         return False
@@ -49,6 +62,11 @@ def mark_task_status(task_id, task_status):
     task.state = task_status.value
     mr_db.session.add(task)
     mr_db.session.commit()
+
+
+def get_data_entity_name(gwas_id):
+    data = MGwasData.query.get(gwas_id)
+    return data.name
 
 
 def delete_data_from_db(data_id):

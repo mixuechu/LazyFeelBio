@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://192.168.2.2:7001', // 替换为你的后端URL
+    baseURL: 'http://192.168.31.158:7001', // 替换为你的后端URL
 });
 
 export const fetchData = () => api.get('/data');

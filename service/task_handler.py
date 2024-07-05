@@ -25,7 +25,7 @@ class TASK_STATUS(Enum):
 
 
 class SCRIPT_MAP(Enum):
-    BASIC_MR = "./basic_mr_processor.py"
+    BASIC_MR = "./simple_mr_processor.py"
     ZIP_DEMO = "./zip_processor.py"
     DATA_PURIFICATION = "./purification_processor.py"
 
@@ -98,6 +98,8 @@ def execute_task(task_id, task_data):
         shutil.copy(file_path, task_folder)
         file_path = os.path.join("purified_data", outcome_id + '.csv')
         shutil.copy(file_path, task_folder)
+
+        modify_to_outcome_csv(os.path.join(task_folder, f"{outcome_id}.csv"))
 
         subprocess.run(["python", processor_script, "--exposure_id", exposure_id, "--outcome_id",
                         outcome_id, "--task_id", task_id], check=True)
