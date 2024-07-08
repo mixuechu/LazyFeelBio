@@ -1,9 +1,7 @@
-// BrowseTasks.js
-
 import React, { useEffect, useState } from 'react';
-import { deleteTask, fetchTasks, createTask } from '../services/api';
+import { deleteTask, fetchTasks, createTask, fetchData } from '../services/api';
 
-const TASK_STATUES_MAP = {
+const TASK_STATUSES_MAP = {
     "READY": "就绪",
     "PROCESSING": "在冲了，别急...",
     "FINISHED": "已完成",
@@ -12,8 +10,7 @@ const TASK_STATUES_MAP = {
 
 const TASK_TYPE_MAP = {
     "BASIC_MR": "基础MR分析",
-    "ZIP_DEMO": "DEMO 打包",
-    "DATA_PURIFICATION": "数据净化"
+    "ZIP_DEMO": "DEMO 打包"
 };
 
 function BrowseTasks() {
@@ -26,6 +23,9 @@ function BrowseTasks() {
         type: 'BASIC_MR',
         description: ''
     });
+    const [dataList, setDataList] = useState([]);
+    const [showDataList, setShowDataList] = useState(false);
+    const [currentInput, setCurrentInput] = useState('');
 
     useEffect(() => {
         const getTasks = async () => {
@@ -42,23 +42,12 @@ function BrowseTasks() {
         getTasks();
     }, []);
 
-    if (loading) {
-        return <div>Loading...</div>;
-    }
-
-    if (error) {
-        return <div>{error}</div>;
-    }
-
-    const handleDelete = async (task_id) => {
-        try {
-            await deleteTask(task_id);
-            setTasks(prevData => prevData.filter(item => item.id !== task_id));
-            setUploadMessage('任务删除成功');
-        } catch (error) {
-            console.error('删除任务时出错：', error);
-            setError('删除任务时出错，请稍后重试。');
-        }
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setNewTask(prevState => ({
+            ...prevState,
+            [name]: value
+        }));
     };
 
     const handleCreateTask = async (e) => {
@@ -74,29 +63,73 @@ function BrowseTasks() {
         }
     };
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
+    const handleDelete = async (task_id) => {
+        try {
+            await deleteTask(task_id);
+            setTasks(prevData => prevData.filter(item => item.id !== task_id));
+            setUploadMessage('任务删除成功');
+        } catch (error) {
+            console.error('删除任务时出错：', error);
+            setError('删除任务时出错，请稍后重试。');
+        }
+    };
+
+    const fetchDataList = async () => {
+        try {
+            const response = await fetchData();
+            setDataList(response.data.data_list.filter(data => data.state === 'PURIFIED'));
+        } catch (error) {
+            console.error('获取数据列表时出错：', error);
+            setError('获取数据列表时出错，请稍后重试。');
+        }
+    };
+
+    const handleShowDataList = async (inputName) => {
+        await fetchDataList();
+        setCurrentInput(inputName);
+        setShowDataList(true);
+    };
+
+    const handleSelectData = (id) => {
         setNewTask(prevState => ({
             ...prevState,
-            [name]: value
+            [currentInput]: id
         }));
+        setShowDataList(false);
     };
 
     const renderFormFields = () => {
         switch (newTask.type) {
-            case 'DATA_PURIFICATION':
+            case 'BASIC_MR':
                 return (
                     <>
                         <div>
-                            <label>GWAS ID:</label>
+                            <label>Exposure ID:</label>
                             <input
                                 type="text"
-                                name="gwas_id"
-                                value={newTask.gwas_id || ''}
-                                onChange={handleInputChange}
+                                name="exposure_id"
+                                value={newTask.exposure_id || ''}
+                                onClick={() => handleShowDataList('exposure_id')}
+                                readOnly
                                 required
                             />
                         </div>
+                        <div>
+                            <label>Outcome ID:</label>
+                            <input
+                                type="text"
+                                name="outcome_id"
+                                value={newTask.outcome_id || ''}
+                                onClick={() => handleShowDataList('outcome_id')}
+                                readOnly
+                                required
+                            />
+                        </div>
+                    </>
+                );
+            case 'ZIP_DEMO':
+                return (
+                    <>
                         <div>
                             <label>Task ID:</label>
                             <input
@@ -113,61 +146,6 @@ function BrowseTasks() {
                                 type="text"
                                 name="entity_name"
                                 value={newTask.entity_name || ''}
-                                onChange={handleInputChange}
-                                required
-                            />
-                        </div>
-                    </>
-                );
-            case 'BASIC_MR':
-                return (
-                    <>
-                        <div>
-                            <label>Outcome Name:</label>
-                            <input
-                                type="text"
-                                name="outcome_name"
-                                value={newTask.outcome_name || ''}
-                                onChange={handleInputChange}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label>Outcome File:</label>
-                            <input
-                                type="text"
-                                name="outcome_file"
-                                value={newTask.outcome_file || ''}
-                                onChange={handleInputChange}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label>Exposure Name:</label>
-                            <input
-                                type="text"
-                                name="exposure_name"
-                                value={newTask.exposure_name || ''}
-                                onChange={handleInputChange}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label>Exposure File:</label>
-                            <input
-                                type="text"
-                                name="exposure_file"
-                                value={newTask.exposure_file || ''}
-                                onChange={handleInputChange}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label>ID:</label>
-                            <input
-                                type="text"
-                                name="id"
-                                value={newTask.id || ''}
                                 onChange={handleInputChange}
                                 required
                             />
@@ -235,7 +213,7 @@ function BrowseTasks() {
                 {tasks.map(task => (
                     <tr key={task.id}>
                         <td>{task.name}</td>
-                        <td>{TASK_STATUES_MAP[task.state]}</td>
+                        <td>{TASK_STATUSES_MAP[task.state]}</td>
                         <td>{TASK_TYPE_MAP[task.type]}</td>
                         <td>{task.description}</td>
                         <td>{new Date(task.create_time).toLocaleString()}</td>
@@ -246,6 +224,20 @@ function BrowseTasks() {
                 ))}
                 </tbody>
             </table>
+
+            {showDataList && (
+                <div className="data-list-modal">
+                    <h2>选择 {currentInput === 'exposure_id' ? 'Exposure ID' : 'Outcome ID'}</h2>
+                    <ul>
+                        {dataList.map(data => (
+                            <li key={data.id} onClick={() => handleSelectData(data.id)}>
+                                {data.id} - {data.name}
+                            </li>
+                        ))}
+                    </ul>
+                    <button onClick={() => setShowDataList(false)}>关闭</button>
+                </div>
+            )}
         </div>
     );
 }

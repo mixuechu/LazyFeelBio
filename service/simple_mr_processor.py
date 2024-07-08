@@ -113,24 +113,24 @@ def process(input_param):
 
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser(
-    #     description="使用提纯过的数据进行快速孟德尔随机化分析")
-    #
-    # parser.add_argument('--exposure_id', required=True, type=str, help='暴露实体的GWAS ID')
-    # parser.add_argument('--outcome_id', required=True, type=str, help='结局实体的GWAS ID')
-    # parser.add_argument('--task_id', required=True, type=str, help='任务ID')
-    # args = parser.parse_args()
-    #
-    # input_param = {
-    #     "exposure_id": args.exposure_id,
-    #     "outcome_id": args.outcome_id,
-    #     "task_id": args.task_id
-    # }
+    parser = argparse.ArgumentParser(
+        description="使用提纯过的数据进行快速孟德尔随机化分析")
+
+    parser.add_argument('--exposure_id', required=True, type=str, help='暴露实体的GWAS ID')
+    parser.add_argument('--outcome_id', required=True, type=str, help='结局实体的GWAS ID')
+    parser.add_argument('--task_id', required=True, type=str, help='任务ID')
+    args = parser.parse_args()
 
     input_param = {
-        "exposure_id": "ieu-a-2",
-        "outcome_id": "ieu-a-7",
-        "task_id": "demo"
+        "exposure_id": args.exposure_id,
+        "outcome_id": args.outcome_id,
+        "task_id": args.task_id
     }
+
+    # input_param = {
+    #     "exposure_id": "ieu-a-2",
+    #     "outcome_id": "ieu-a-7",
+    #     "task_id": "demo"
+    # }
 
     process(input_param)
