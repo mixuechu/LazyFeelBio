@@ -3,6 +3,9 @@
 # dependencies
 /node_modules
 /service/gwas_data
+/service/purified_data
+/service/results
+/service/task_working_directories
 /.pnp
 .pnp.js
 

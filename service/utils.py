@@ -40,7 +40,7 @@ def read_r_script(file_path):
 
 def check_purified(gwas_id):
     data = MGwasData.query.get(gwas_id)
-    file_path = f"./purified_data/{gwas_id}_purified.csv"
+    file_path = f"./purified_data/{gwas_id}_outcome.csv"
     if not data:
         print("PURIFICATION: Data not found")
         return False
@@ -56,6 +56,18 @@ def mark_data_status(gwas_id, data_status):
     mr_db.session.add(data)
     mr_db.session.commit()
 
+
+def save_task_result(task_id, exposure_id, outcome_id):
+    result = MRResult(task_id=task_id, exposure_id=exposure_id, outcome_id=outcome_id, finished=True)
+    mr_db.session.add(result)
+    mr_db.session.commit()
+
+def save_failed_task(task_id):
+    task = MTask()
+    task.id = task_id
+    task.state = "FAILED"
+    mr_db.session.add(task)
+    mr_db.session.commit()
 
 def mark_task_status(task_id, task_status):
     task = MTask.query.get(task_id)
@@ -217,6 +229,6 @@ def setup():
     #     conn.execute(text('ALTER TABLE m_gwas_data ADD PRIMARY KEY (gwas_id)'))
 
     # 初始化预设数据
-    init_preset_data()
+    # init_preset_data()
 
-# setup()
+setup()

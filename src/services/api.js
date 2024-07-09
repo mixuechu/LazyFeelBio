@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://172.16.211.159:7001', // 替换为你的后端URL
+    baseURL: 'http://192.168.31.158:7001', // 替换为你的后端URL
 });
 
 export const fetchData = () => api.get('/data');
@@ -16,7 +16,7 @@ export const deleteData = (id) => api.delete(`/data/${id}`);
 export const deleteTask = (taskId) => api.delete(`/task/${taskId}`);
 export const purifyData = (data_id, entity_name) => api.post(`/data/${data_id}`, {entity_name});
 export const fetchTasks = () => api.get('/tasks');
-export const createTask = (task) => api.post('/tasks', task);
+export const createTask = (task) => api.post('/task', task);
 export const fetchResults = () => api.get('/results');
 
 

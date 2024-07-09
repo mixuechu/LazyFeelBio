@@ -73,7 +73,7 @@ def execute_task(task_id, task_data):
 
         # 库中插入
         new_task = MTask(
-            id=task_id,  # Ensure the correct field name 'id' is used
+            id=task_id,
             name=f"{data_id} 净化",
             state=TASK_STATUS.PROCESSING.value,
             type=SCRIPT_MAP.DATA_PURIFICATION.name,
@@ -94,15 +94,29 @@ def execute_task(task_id, task_data):
 
         exposure_id, outcome_id = task_data.get("exposure_id"), task_data.get("outcome_id")
 
-        file_path = os.path.join("purified_data", exposure_id + '.csv')
+        file_path = os.path.join("purified_data", exposure_id + '_exposure.csv')
         shutil.copy(file_path, task_folder)
-        file_path = os.path.join("purified_data", outcome_id + '.csv')
+        file_path = os.path.join("purified_data", outcome_id + '_outcome.csv')
         shutil.copy(file_path, task_folder)
 
-        modify_to_outcome_csv(os.path.join(task_folder, f"{outcome_id}.csv"))
+        # 库中插入
+        new_task = MTask(
+            id=task_id,  # Ensure the correct field name 'id' is used
+            name=task_data.get('name', f'{exposure_id} -> {outcome_id} 的简单MR分析'),
+            state=TASK_STATUS.PROCESSING.value,
+            type=SCRIPT_MAP.BASIC_MR.name,
+            input_params=task_data,
+            description=task_data.get('description',
+                                      f"对于 {task_data.get('data_id')} - {task_data.get('entity_name')} 所进行的基础MR任务")
+        )
 
+        mr_db.session.add(new_task)
+        mr_db.session.commit()
+
+        # modify_to_outcome_csv(os.path.join(task_folder, f"{outcome_id}.csv"))
         subprocess.run(["python", processor_script, "--exposure_id", exposure_id, "--outcome_id",
                         outcome_id, "--task_id", task_id], check=True)
+
         logging.info(f'Basic MR completed, output saved in folder {task_folder}')
 
 
@@ -116,7 +130,9 @@ def create_task(task_data, base_dir=BASE_DIR):
         execute_task(task_id, task_data)
         mark_task_status(task_id, TASK_STATUS.FINISHED)
     except Exception as e:
-        mark_task_status(task_id, TASK_STATUS.FAILED)
+        save_failed_task(task_id)
+        # mark_task_status(task_id, TASK_STATUS.FAILED)
+        # logging.error("task failed")
 
     return task_id
 

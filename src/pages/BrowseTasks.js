@@ -230,8 +230,8 @@ function BrowseTasks() {
                     <h2>选择 {currentInput === 'exposure_id' ? 'Exposure ID' : 'Outcome ID'}</h2>
                     <ul>
                         {dataList.map(data => (
-                            <li key={data.id} onClick={() => handleSelectData(data.id)}>
-                                {data.id} - {data.name}
+                            <li key={data.gwas_id} onClick={() => handleSelectData(data.gwas_id)}>
+                                {data.gwas_id} - {data.name}
                             </li>
                         ))}
                     </ul>

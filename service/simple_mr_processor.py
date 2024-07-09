@@ -1,4 +1,5 @@
 # simple_mr_processor.py
+import json
 import subprocess
 import argparse
 import shutil
@@ -12,8 +13,9 @@ def process(input_param):
 
     exposure_name = get_data_entity_name(exposure_id)
     outcome_name = get_data_entity_name(outcome_id)
+    task_id = input_param.get('task_id')
 
-    working_directory = f"./task_working_directories/{input_param.get('task_id')}"
+    working_directory = f"./task_working_directories/{task_id}"
     script_content = f"""
     library(VariantAnnotation)
     library(gwasglue)
@@ -27,14 +29,16 @@ def process(input_param):
     options(download.file.method = "curl")
     options(ieugwasr_api = 'gwas-api.mrcieu.ac.uk/')
     setwd("{working_directory}")
-    exposure_dat <- read.csv("{exposure_id}_purified.csv")
+    
+    
+    exposure_dat <- read.csv("{exposure_id}_exposure.csv")
     # vcfRT <- readVcf("{outcome_id}.vcf.gz")
     # outcomeData <- gwasvcf_to_TwoSampleMR(vcf=vcfRT, type="outcome")
     
     
-    # outcomeData <- read.csv("{outcome_id}_original.csv")
-    # outcomeTab <- merge(exposure_dat, outcomeData, by.x="SNP", by.y="SNP")
-    # write.csv(outcomeTab[,-(2:ncol(exposure_dat))], file="outcome.csv", row.names=FALSE)
+    outcomeData <- read.csv("{outcome_id}_outcome.csv")
+    outcomeTab <- merge(exposure_dat, outcomeData, by.x="SNP", by.y="SNP")
+    write.csv(outcomeTab[,-(2:ncol(exposure_dat))], file="outcome.csv", row.names=FALSE)
     outcome_dat <- read_outcome_data(snps=exposure_dat$SNP,
                      filename="outcome.csv", sep = ",",
                      snp_col = "SNP",
@@ -86,21 +90,24 @@ def process(input_param):
         file.write(script_content)
 
     start_time = time.time()
+    #
+    # shutil.copy(os.path.join(working_directory, f"{outcome_id}_original.csv"),
+    #             os.path.join("./purified_data", f"{outcome_id}_original.csv"))
+    # shutil.copy(os.path.join(working_directory, f"{exposure_id}_purified.csv"),
+    #             os.path.join("./purified_data", f"{exposure_id}_purified.csv"))
 
-    shutil.copy(os.path.join(working_directory, f"{outcome_id}_original.csv"),
-                os.path.join("./purified_data", f"{outcome_id}_original.csv"))
-    shutil.copy(os.path.join(working_directory, f"{exposure_id}_purified.csv"),
-                os.path.join("./purified_data", f"{exposure_id}_purified.csv"))
-
-    print(f"搬运文件花费的时间: {time.time() - start_time:.2f} 秒")
-    start_time = time.time()
+    # print(f"搬运文件花费的时间: {time.time() - start_time:.2f} 秒")
+    # start_time = time.time()
     # modify_to_outcome_csv(os.path.join(working_directory, f"{outcome_id}_original.csv"))
-    print(f"转表头花费时间: {time.time() - start_time:.2f} 秒")
+    # print(f"转表头花费时间: {time.time() - start_time:.2f} 秒")
 
-    start_time = time.time()
+    # start_time = time.time()
     subprocess.run(['Rscript', complete_script_path], check=True)
     print(f"simple mr cost: {time.time() - start_time:.2f} 秒")
-    # shutil.copy(os.path.join(working_directory, f"{gwas_id}.csv"), os.path.join("./purified_data", f"{gwas_id}.csv"))
+    shutil.copy(os.path.join(working_directory, f"table.MRresult.csv"), os.path.join("./results", f"{task_id}.csv"))
+
+    save_task_result(task_id, exposure_id, outcome_id)
+
     # import time
     # time.sleep(30)
 
@@ -115,7 +122,7 @@ def process(input_param):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="使用提纯过的数据进行快速孟德尔随机化分析")
-
+    # parser.add_argument('--task_params', required=True, type=str, help='所有的任务入参')
     parser.add_argument('--exposure_id', required=True, type=str, help='暴露实体的GWAS ID')
     parser.add_argument('--outcome_id', required=True, type=str, help='结局实体的GWAS ID')
     parser.add_argument('--task_id', required=True, type=str, help='任务ID')
