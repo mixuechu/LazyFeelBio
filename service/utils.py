@@ -152,6 +152,20 @@ def get_data_list():
         return jsonify({"message": f"Error retrieving data: {str(e)}"}), 500
 
 
+def get_result_list():
+    results = MRResult.query.all()
+    results_list = [
+        {
+            'id': result.id,
+            'exposure_id': result.exposure_id,
+            'outcome_id': result.outcome_id,
+            'task_id': result.task_id,
+            'finished': result.finished
+        }
+        for result in results
+    ]
+    return jsonify(results_list)
+
 def upload_and_save_file(form, filename):
     try:
         file_info = {

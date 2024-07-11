@@ -15,8 +15,6 @@ function App() {
         return <BrowseData />;
       case 'browse-tasks':
         return <BrowseTasks />;
-      case 'create-task':
-        return <CreateTask />;
       case 'browse-results':
         return <BrowseResults />;
       default:
@@ -33,9 +31,6 @@ function App() {
         </button>
         <button className={activeTab === 'browse-tasks' ? 'active' : ''} onClick={() => setActiveTab('browse-tasks')}>
           查看任务列表
-        </button>
-        <button className={activeTab === 'create-task' ? 'active' : ''} onClick={() => setActiveTab('create-task')}>
-          创建任务
         </button>
         <button className={activeTab === 'browse-results' ? 'active' : ''} onClick={() => setActiveTab('browse-results')}>
           查看任务结果

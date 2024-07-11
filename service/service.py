@@ -123,9 +123,9 @@ def create_task():
 
 
 # 任务明细
-@app.route('/task', methods=['GET'])
+@app.route('/results', methods=['GET'])
 def get_results():
-    return jsonify(results)
+    return get_result_list()
 
 
 if __name__ == '__main__':
